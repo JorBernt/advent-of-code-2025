@@ -3,7 +3,7 @@ use std::ops::RangeInclusive;
 use std::str::FromStr;
 
 pub fn solve() {
-    let ranges: Vec<RangeInclusive<u64>> = read_lines("src/day_ 02/input.txt")
+    let ranges: Vec<RangeInclusive<u64>> = read_lines("src/day_02/input.txt")
         .first()
         .unwrap()
         .split(",")
