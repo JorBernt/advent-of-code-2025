@@ -28,11 +28,6 @@ pub fn solve() {
         } else {
             &tiles[i + 1]
         };
-        /*if a.y == b.y {
-            for i in a.x.min(b.x)..=a.x.max(b.x) {
-                grid[a.y as usize][i as usize] = i as u16;
-            }
-        } else */
         if a.x == b.x {
             for i in a.y.min(b.y)..=a.y.max(b.y) {
                 grid[i as usize][a.x as usize] = if a.y < b.y { 1 } else { 2 };
@@ -55,12 +50,6 @@ pub fn solve() {
                 .push((a.x.min(b.x)..=a.x.max(b.x)));
         }
     }
-    /* for y in 0..h {
-        for x in 0..w {
-            print!("{}",grid[y][x])
-        }
-        println!()
-    }*/
 
     let mut max = 0;
     for i in 0..tiles.len() {

@@ -7,8 +7,11 @@ mod day_06;
 mod day_07;
 mod day_08;
 mod day_09;
+mod day_10;
+mod day_11;
+mod day_12;
 mod input_util;
 
 fn main() {
-    day_09::part_2  ::solve();
+    day_10::part_2::solve();
 }
