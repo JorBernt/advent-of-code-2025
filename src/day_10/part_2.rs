@@ -1,8 +1,5 @@
 use crate::input_util::read_lines;
 use std::collections::HashMap;
-use std::ffi::c_ushort;
-use std::os::unix::raw::uid_t;
-use std::pin::Pin;
 
 #[derive(Debug)]
 struct Light {
@@ -13,8 +10,7 @@ pub fn solve() {
     let lines = read_lines("src/day_10/input.txt")
         .iter()
         .map(|l| {
-            let mut buttons = l
-                [l.find(|c| c == ']').unwrap() + 1..l.find(|c| c == '{').unwrap() - 1]
+            let buttons = l[l.find(|c| c == ']').unwrap() + 1..l.find(|c| c == '{').unwrap() - 1]
                 .split_whitespace()
                 .map(|s| {
                     (&s[1..s.len() - 1])
@@ -23,7 +19,6 @@ pub fn solve() {
                         .collect::<Vec<usize>>()
                 })
                 .collect::<Vec<Vec<usize>>>();
-            buttons.sort_by(|a, b| b.len().cmp(&a.len()));
             let joltage = l[l.find(|c| c == '{').unwrap() + 1..l.find(|c| c == '}').unwrap()]
                 .split(",")
                 .map(|s| s.parse().unwrap())
@@ -31,64 +26,129 @@ pub fn solve() {
             Light { buttons, joltage }
         })
         .collect::<Vec<Light>>();
-    let ans = lines
-        .iter()
-        .enumerate()
-        .map(|(i, l)| {
-            let mut k = 0;
-            for j in 0..l.buttons.len() {
-                println!("{i}/{}", lines.len());
-                let memo = &mut HashMap::new();
-                k = calc(l, j, &mut vec![0; l.joltage.len()], 0, memo);
-                println!("{k}");
-                if k != 0 {
-                    break
+    let mut ans = 0;
+    for mut l in lines {
+        let a = calc(&mut l.joltage, &l.buttons, &mut HashMap::new());
+        println!("{a}");
+        ans += a;
+    }
+    print!("{ans}");
+    fn calc(
+        joltage: &mut Vec<u64>,
+        buttons: &Vec<Vec<usize>>,
+        memo: &mut HashMap<i64, Vec<Vec<Vec<usize>>>>,
+    ) -> i64 {
+        if joltage.iter().all(|n| n == &0) {
+            return 0;
+        }
+        let target = convert_to_target(joltage);
+
+        if !memo.contains_key(&target) {
+            combinations(
+                target,
+                0,
+                0,
+                joltage.len(),
+                buttons,
+                &mut Vec::new(),
+                memo,
+                true,
+            );
+        }
+        let mut m = 1_000_000;
+        if target == 0 {
+            print!("");
+        }
+        let x = &memo[&target].clone();
+        if target == 0 {
+            let mut jolt = joltage.clone();
+            for i in 0..jolt.len() {
+                jolt[i] /= 2;
+            }
+            m = m.min((calc(&mut jolt, buttons, memo) * 2))
+        }
+        'outer: for c in x {
+            let mut jolt = joltage.clone();
+            for k in c {
+                for n in k {
+                    if jolt[*n] == 0 {
+                        continue 'outer;
+                    } else {
+                        jolt[*n] -= 1;
+                    }
                 }
             }
-            k
-        })
-        .collect::<Vec<u64>>();
-    println!("{}", ans.iter().sum::<u64>());
+
+            for i in 0..jolt.len() {
+                jolt[i] /= 2;
+            }
+            if m < 70 {
+                print!("");
+            }
+            m = m.min((calc(&mut jolt, buttons, memo) * 2) + c.len() as i64)
+        }
+        m
+    }
+}
+fn convert_to_target(joltage: &Vec<u64>) -> i64 {
+    let mut l = joltage.len();
+    let mut target = 0;
+    for n in joltage {
+        l -= 1;
+        target += (n & 1) << l;
+    }
+    target as i64
 }
 
-fn calc(
-    light: &Light,
+fn combinations(
+    target: i64,
+    current: i64,
     index: usize,
-    current: &mut Vec<u64>,
-    count: u64,
-    memo: &mut HashMap<Vec<u64>, u64>,
-) -> u64 {
-    if current == &light.joltage {
-        return count;
-    }
-    if memo.contains_key(current) {
-        return 0
-    }
-    memo.insert(current.clone(), 0);
-    for i in 0..light.buttons.len() {
-        let b = &light.buttons[(i + index) % light.buttons.len()];
-        if !b.iter().all(|n| current[*n] < light.joltage[*n]) {
-            continue;
-        }
-        let max = b
-            .iter()
-            .map(|n| current[*n].abs_diff(light.joltage[*n]))
-            .min()
-            .unwrap();
-        for n in b {
-            current[*n] += max;
-        }
-        for _ in 0..max{
-            let m = calc(light,index, current, count + max, memo);
-            if m != 0 {
-                return m
+    length: usize,
+    buttons: &Vec<Vec<usize>>,
+    combs: &mut Vec<usize>,
+    selected: &mut HashMap<i64, Vec<Vec<Vec<usize>>>>,
+    first: bool,
+) {
+    if !first && current == target {
+        if combs.len() > 0 {
+            if !selected.contains_key(&target) {
+                selected.insert(target, Vec::new());
             }
-            for n in b {
-                current[*n] -= 1;
+            let mut a = Vec::new();
+            let x = selected.get_mut(&target).unwrap();
+            for n in combs {
+                a.push(buttons[*n].clone());
             }
+            x.push(a);
         }
-
+        return;
     }
-     println!("{:?}", current);
-    0
+    if index == buttons.len() {
+        return;
+    }
+    let b = &buttons[index];
+    let n = b.iter().fold(0, |acc, n| acc + (1 << ((length - 1) - n)));
+    combs.push(index);
+    combinations(
+        target,
+        current ^ n,
+        index + 1,
+        length,
+        buttons,
+        combs,
+        selected,
+        false,
+    );
+    combs.pop();
+    combinations(
+        target,
+        current,
+        index + 1,
+        length,
+        buttons,
+        combs,
+        selected,
+        false,
+    );
 }
